@@ -167,18 +167,18 @@
                     </button>
                 </div>
                 <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                    <span class="truncate"><i class="fa-solid fa-bullseye mr-1 text-slate-400"></i> Planned Limit</span>
+                    <span class="truncate">Total Est: <strong id="stat-total-estimated" class="text-slate-700 dark:text-slate-300">₹0</strong></span>
                 </div>
                 <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800">
                     <div id="bar-target" class="h-full bg-slate-400 dark:bg-slate-600 w-full"></div>
                 </div>
             </div>
 
-            <!-- Total Spent Card -->
+            <!-- Total Paid Card -->
             <div class="bg-white dark:bg-darkcard p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all hover:shadow-md glow-active">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Total Spent</p>
+                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Total Paid</p>
                         <h3 class="text-lg sm:text-2xl font-black text-brand-600 dark:text-brand-400 mt-1" id="stat-total-spent">₹0</h3>
                     </div>
                     <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 flex items-center justify-center">
@@ -186,10 +186,29 @@
                     </div>
                 </div>
                 <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                    <span class="truncate">Est: <strong id="stat-total-estimated" class="text-slate-700 dark:text-slate-300">₹0</strong></span>
+                    <span class="truncate">Completed: <strong id="stat-todo-progress" class="text-slate-700 dark:text-slate-300">0 / 0</strong> (<span id="stat-todo-percent">0%</span>)</span>
                 </div>
                 <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800">
                     <div id="bar-spent" class="h-full bg-brand-500 transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Total Pending Card -->
+            <div class="bg-white dark:bg-darkcard p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Total Pending</p>
+                        <h3 class="text-lg sm:text-2xl font-black text-amber-600 dark:text-amber-400 mt-1" id="stat-total-pending">₹0</h3>
+                    </div>
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                        <i class="fa-solid fa-clock-rotate-left text-xs sm:text-sm"></i>
+                    </div>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <span id="stat-items-pending" class="truncate font-semibold text-amber-700 dark:text-amber-300">0 Items To Buy</span>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800">
+                    <div id="bar-pending" class="h-full bg-amber-500 transition-all duration-500" style="width: 0%"></div>
                 </div>
             </div>
 
@@ -197,7 +216,7 @@
             <div id="card-remaining" class="bg-white dark:bg-darkcard p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Remaining</p>
+                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Remaining Budget</p>
                         <h3 class="text-lg sm:text-2xl font-black text-slate-900 dark:text-white mt-1" id="stat-remaining-budget">₹0</h3>
                     </div>
                     <div id="icon-remaining" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
@@ -209,26 +228,6 @@
                 </div>
                 <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800">
                     <div id="bar-remaining" class="h-full bg-blue-500 transition-all duration-500" style="width: 100%"></div>
-                </div>
-            </div>
-
-            <!-- To-Do & Purchases Card -->
-            <div class="bg-white dark:bg-darkcard p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Completed</p>
-                        <h3 class="text-lg sm:text-2xl font-black text-accent-600 dark:text-accent-400 mt-1" id="stat-todo-progress">0 / 0</h3>
-                    </div>
-                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-accent-400 flex items-center justify-center">
-                        <i class="fa-solid fa-[list-check] text-xs sm:text-sm"></i>
-                    </div>
-                </div>
-                <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                    <span id="stat-todo-percent" class="font-bold text-slate-700 dark:text-slate-300">0%</span>
-                    <span id="stat-items-pending">0 Pending</span>
-                </div>
-                <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800">
-                    <div id="bar-progress" class="h-full bg-accent-600 transition-all duration-500" style="width: 0%"></div>
                 </div>
             </div>
         </section>
@@ -699,7 +698,9 @@
                 
                 if (item.isBought) {
                     boughtCount++;
-                    const paid = (item.actualCost !== undefined && item.actualCost !== '' && item.actualCost !== null) ? Number(item.actualCost) : est;
+                    const paid = (item.actualCost !== undefined && item.actualCost !== '' && item.actualCost !== null && !isNaN(item.actualCost)) 
+                        ? Number(item.actualCost) 
+                        : est;
                     totalSpent += paid;
                 } else {
                     totalPending += est;
@@ -714,6 +715,7 @@
             document.getElementById('stat-target-budget').textContent = formatCurrency(targetBudget);
             document.getElementById('stat-total-spent').textContent = formatCurrency(totalSpent);
             document.getElementById('stat-total-estimated').textContent = formatCurrency(totalEstimated);
+            document.getElementById('stat-total-pending').textContent = formatCurrency(totalPending);
             
             const remainingElem = document.getElementById('stat-remaining-budget');
             remainingElem.textContent = formatCurrency(remaining);
@@ -723,16 +725,17 @@
                 document.getElementById('stat-budget-status').innerHTML = `<span class="text-red-500 font-bold flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Over budget by ${formatCurrency(Math.abs(remaining))}</span>`;
             } else {
                 remainingElem.className = "text-lg sm:text-2xl font-black text-slate-900 dark:text-white mt-1";
-                document.getElementById('stat-budget-status').innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Safe within budget</span>`;
+                document.getElementById('stat-budget-status').innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1"><i class="fa-solid fa-shield-check"></i> Safe within budget</span>`;
             }
 
             document.getElementById('stat-todo-progress').textContent = `${boughtCount} / ${totalCount}`;
-            document.getElementById('stat-todo-percent').textContent = `${progressPercent}% Completed`;
-            document.getElementById('stat-items-pending').textContent = `${totalCount - boughtCount} Pending`;
+            document.getElementById('stat-todo-percent').textContent = `${progressPercent}%`;
+            document.getElementById('stat-items-pending').textContent = `${totalCount - boughtCount} Items To Buy`;
 
             const spentPercent = targetBudget > 0 ? Math.min(100, Math.round((totalSpent / targetBudget) * 100)) : 0;
+            const pendingPercent = totalEstimated > 0 ? Math.min(100, Math.round((totalPending / totalEstimated) * 100)) : 0;
             document.getElementById('bar-spent').style.width = `${spentPercent}%`;
-            document.getElementById('bar-progress').style.width = `${progressPercent}%`;
+            document.getElementById('bar-pending').style.width = `${pendingPercent}%`;
 
             renderItemsView(filtered);
             renderCharts(eventItems);
@@ -1040,10 +1043,14 @@
         
         document.getElementById('btn-submit-mark-bought').onclick = () => {
             if (!markBoughtItemId) return;
-            const amount = parseFloat(document.getElementById('mark-bought-amount').value) || 0;
-            
+            const inputVal = document.getElementById('mark-bought-amount').value;
             const item = itemsList.find(i => i.id === markBoughtItemId);
+            
             if (item) {
+                const amount = (inputVal !== '' && !isNaN(inputVal)) 
+                    ? parseFloat(inputVal) 
+                    : Number(item.estimatedCost || 0);
+                    
                 item.isBought = true;
                 item.actualCost = amount;
                 saveData();
@@ -1099,9 +1106,14 @@
             const category = document.getElementById('item-category').value;
             const priority = document.getElementById('item-priority').value;
             const estimatedCost = parseFloat(document.getElementById('item-estimated-cost').value) || 0;
-            const actualCost = parseFloat(document.getElementById('item-actual-cost').value) || 0;
+            const actualCostInput = document.getElementById('item-actual-cost').value;
             const isBought = document.getElementById('item-status').checked;
             const notes = document.getElementById('item-notes').value.trim();
+
+            let actualCost = parseFloat(actualCostInput);
+            if (isNaN(actualCost) || actualCostInput === '') {
+                actualCost = isBought ? estimatedCost : 0;
+            }
 
             if (id) {
                 const index = itemsList.findIndex(i => i.id === id);
