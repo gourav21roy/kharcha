@@ -296,6 +296,12 @@
                     <button id="btn-export-csv" title="Export to CSV" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 transition">
                         <i class="fa-solid fa-file-csv text-brand-600 dark:text-brand-400"></i> <span class="hidden sm:inline">CSV Export</span>
                     </button>
+
+                    <!-- Import CSV -->
+                    <button id="btn-import-csv" title="Import from CSV" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-file-import text-accent-600 dark:text-accent-400"></i> <span class="hidden sm:inline">CSV Import</span>
+                    </button>
+                    <input type="file" id="input-import-csv" accept=".csv" class="hidden">
                 </div>
             </div>
 
@@ -333,6 +339,8 @@
                 <div>
                     <select id="filter-sort" class="w-full py-2 px-3 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium text-slate-700 dark:text-slate-200">
                         <option value="NEWEST">Sort: Newest First</option>
+                        <option value="STATUS_PENDING">Sort: Pending First</option>
+                        <option value="STATUS_DONE">Sort: Completed First</option>
                         <option value="COST_HIGH">Sort: Price (High to Low)</option>
                         <option value="COST_LOW">Sort: Price (Low to High)</option>
                         <option value="NAME">Sort: Name (A-Z)</option>
@@ -674,6 +682,8 @@
             // Sorting logic
             filtered.sort((a, b) => {
                 const getActualOrEst = (i) => (i.actualCost !== undefined && i.actualCost !== '' && i.actualCost !== null) ? Number(i.actualCost) : Number(i.estimatedCost || 0);
+                if (sortFilter === 'STATUS_PENDING') return (a.isBought ? 1 : 0) - (b.isBought ? 1 : 0);
+                if (sortFilter === 'STATUS_DONE') return (b.isBought ? 1 : 0) - (a.isBought ? 1 : 0);
                 if (sortFilter === 'COST_HIGH') return getActualOrEst(b) - getActualOrEst(a);
                 if (sortFilter === 'COST_LOW') return getActualOrEst(a) - getActualOrEst(b);
                 if (sortFilter === 'NAME') return (a.title || '').localeCompare(b.title || '');
@@ -1239,6 +1249,143 @@
             link.click();
             document.body.removeChild(link);
             showToast('CSV downloaded');
+        };
+
+        // CSV Helper Parser function for quotes and commas
+        function parseCSVText(csvText) {
+            const lines = [];
+            let row = [];
+            let inQuotes = false;
+            let currentToken = '';
+
+            for (let i = 0; i < csvText.length; i++) {
+                const char = csvText[i];
+                const nextChar = csvText[i + 1];
+
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        currentToken += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    row.push(currentToken.trim());
+                    currentToken = '';
+                } else if ((char === '\r' || char === '\n') && !inQuotes) {
+                    if (char === '\r' && nextChar === '\n') {
+                        i++;
+                    }
+                    row.push(currentToken.trim());
+                    if (row.some(cell => cell.length > 0)) {
+                        lines.push(row);
+                    }
+                    row = [];
+                    currentToken = '';
+                } else {
+                    currentToken += char;
+                }
+            }
+            if (currentToken.length > 0 || row.length > 0) {
+                row.push(currentToken.trim());
+                if (row.some(cell => cell.length > 0)) {
+                    lines.push(row);
+                }
+            }
+            return lines;
+        }
+
+        // Import CSV Event Handler
+        document.getElementById('btn-import-csv').onclick = () => {
+            document.getElementById('input-import-csv').click();
+        };
+
+        document.getElementById('input-import-csv').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const csvText = evt.target.result;
+                    const rows = parseCSVText(csvText);
+
+                    if (rows.length < 2) {
+                        showToast('CSV file is empty or invalid format');
+                        return;
+                    }
+
+                    // Map columns by matching header strings
+                    let headerIndexMap = { title: 0, category: 1, priority: 2, estCost: 3, actualCost: 4, status: 5, notes: 6 };
+                    const headers = rows[0].map(h => h.toLowerCase().trim());
+                    
+                    headers.forEach((h, idx) => {
+                        if (h.includes('name') || h.includes('item') || h.includes('task')) headerIndexMap.title = idx;
+                        else if (h.includes('category')) headerIndexMap.category = idx;
+                        else if (h.includes('priority')) headerIndexMap.priority = idx;
+                        else if (h.includes('est') || h.includes('estimate')) headerIndexMap.estCost = idx;
+                        else if (h.includes('actual') || h.includes('paid')) headerIndexMap.actualCost = idx;
+                        else if (h.includes('status')) headerIndexMap.status = idx;
+                        else if (h.includes('note')) headerIndexMap.notes = idx;
+                    });
+
+                    let importedCount = 0;
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length === 0) continue;
+
+                        const title = row[headerIndexMap.title] || '';
+                        if (!title) continue;
+
+                        const category = row[headerIndexMap.category] || 'General & Misc';
+                        
+                        let priority = (row[headerIndexMap.priority] || 'MEDIUM').toUpperCase().trim();
+                        if (!['HIGH', 'MEDIUM', 'LOW'].includes(priority)) priority = 'MEDIUM';
+
+                        const rawEst = row[headerIndexMap.estCost] ? row[headerIndexMap.estCost].replace(/[^0-9.]/g, '') : '0';
+                        const estimatedCost = parseFloat(rawEst) || 0;
+
+                        const rawActual = row[headerIndexMap.actualCost] ? row[headerIndexMap.actualCost].replace(/[^0-9.]/g, '') : '';
+                        
+                        const statusStr = (row[headerIndexMap.status] || '').toLowerCase();
+                        const isBought = statusStr.includes('purchased') || statusStr.includes('done') || statusStr.includes('bought') || statusStr.includes('completed') || statusStr === 'true';
+
+                        let actualCost = parseFloat(rawActual);
+                        if (isNaN(actualCost)) {
+                            actualCost = isBought ? estimatedCost : 0;
+                        }
+
+                        const notes = row[headerIndexMap.notes] || '';
+
+                        itemsList.push({
+                            id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                            title,
+                            category,
+                            priority,
+                            estimatedCost,
+                            actualCost,
+                            isBought,
+                            notes,
+                            eventId: activeEventId,
+                            createdAt: Date.now() + i
+                        });
+                        importedCount++;
+                    }
+
+                    if (importedCount > 0) {
+                        saveData();
+                        renderUI();
+                        showToast(`Successfully imported ${importedCount} items!`);
+                    } else {
+                        showToast('No valid item rows found in CSV');
+                    }
+                } catch (err) {
+                    console.error('Error parsing CSV:', err);
+                    showToast('Failed to parse CSV file');
+                }
+                e.target.value = '';
+            };
+            reader.readAsText(file);
         };
 
         // Initialize App
