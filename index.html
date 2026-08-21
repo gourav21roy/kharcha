@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kharcha - Event Expense & To-Do Tracker</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        },
+                        accent: {
+                            50: '#faf5ff',
+                            100: '#f3e8ff',
+                            500: '#a855f7',
+                            600: '#9333ea',
+                            700: '#7e22ce',
+                        },
+                        darkbg: '#0f172a',
+                        darkcard: '#1e293b',
+                        darkborder: '#334155'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- FontAwesome Icons & Inter Font -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js & Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+
+        .glass-header {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .gradient-card-border {
+            position: relative;
+        }
+        .gradient-card-border::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 1rem;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(34,197,94,0.4), rgba(168,85,247,0.3));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        /* Pulse glow animation for active metrics */
+        @keyframes subtleGlow {
+            0%, 100% { box-shadow: 0 4px 20px -2px rgba(34, 197, 94, 0.15); }
+            50% { box-shadow: 0 4px 25px 2px rgba(34, 197, 94, 0.3); }
+        }
+        .glow-active { animation: subtleGlow 3s infinite ease-in-out; }
+
+        /* Toast Popup Notification Slide */
+        @keyframes toastIn {
+            from { transform: translateY(100%) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .toast-animate { animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-800 dark:text-slate-100 antialiased bg-slate-50 dark:bg-darkbg transition-colors duration-300 pb-20 md:pb-6">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white/90 dark:bg-darkcard/90 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shadow-sm glass-header transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+            
+            <!-- Brand & Theme Toggle -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-emerald-500 to-accent-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20 transform hover:scale-105 transition">
+                    <i class="fa-solid fa-receipt text-lg"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-extrabold text-slate-900 dark:text-white text-lg sm:text-xl tracking-tight">Kharcha</h1>
+                        <span class="text-[10px] uppercase font-bold bg-brand-100 dark:bg-brand-900/60 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded-full border border-brand-200 dark:border-brand-700">Offline Pro</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">Smart Event Expenses & To-Do Checklist</p>
+                </div>
+            </div>
+
+            <!-- Controls: Currency, Event Selector & Theme Toggle -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+
+                <!-- Dark / Light Mode Switch Button -->
+                <button id="btn-theme-toggle" title="Toggle Theme" class="p-2 w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center justify-center">
+                    <i class="fa-solid fa-moon dark:hidden text-sm"></i>
+                    <i class="fa-solid fa-sun hidden dark:inline text-amber-400 text-sm"></i>
+                </button>
+
+                <!-- Currency Selector -->
+                <div class="relative">
+                    <select id="currency-selector" title="Select Currency" class="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs sm:text-sm rounded-xl border-0 focus:ring-2 focus:ring-brand-500 px-2.5 py-2 font-semibold shadow-inner cursor-pointer">
+                        <option value="₹">₹ INR</option>
+                        <option value="$">$ USD</option>
+                        <option value="€">€ EUR</option>
+                        <option value="£">£ GBP</option>
+                        <option value="AED">AED</option>
+                        <option value="৳">৳ BDT</option>
+                        <option value="₨">₨ PKR</option>
+                    </select>
+                </div>
+
+                <!-- Event Switcher Dropdown -->
+                <div class="relative max-w-[140px] sm:max-w-[200px]">
+                    <select id="event-selector" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs sm:text-sm rounded-xl border-0 focus:ring-2 focus:ring-brand-500 px-3 py-2 font-semibold shadow-inner cursor-pointer truncate">
+                    </select>
+                </div>
+
+                <!-- New Event Button -->
+                <button id="btn-new-event" title="Create New Event" class="bg-brand-500 hover:bg-brand-600 active:scale-95 text-white font-semibold text-xs px-3 py-2 rounded-xl shadow-sm flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-plus"></i> <span class="hidden md:inline">New Event</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5">
+
+        <!-- Dashboard Summary Grid Cards -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            
+            <!-- Target Budget Card -->
+            <div class="bg-white dark:bg-darkcard p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Target Budget</p>
+                        <h3 class="text-lg sm:text-2xl font-black text-slate-900 dark:text-white mt-1" id="stat-target-budget">₹0</h3>
+                    </div>
+                    <button id="btn-edit-budget" title="Edit Budget Limit" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700 flex items-center justify-center transition">
+                        <i class="fa-solid fa-pen-to-square text-xs sm:text-sm"></i>
+                    </button>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <span class="truncate"><i class="fa-solid fa-bullseye mr-1 text-slate-400"></i> Planned Limit</span>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800">
+                    <div id="bar-target" class="h-full bg-slate-400 dark:bg-slate-600 w-full"></div>
+                </div>
+            </div>
+
+            <!-- Total Spent Card -->
+            <div class="bg-white dark:bg-darkcard p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all hover:shadow-md glow-active">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Total Spent</p>
+                        <h3 class="text-lg sm:text-2xl font-black text-brand-600 dark:text-brand-400 mt-1" id="stat-total-spent">₹0</h3>
+                    </div>
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 flex items-center justify-center">
+                        <i class="fa-solid fa-wallet text-xs sm:text-sm"></i>
+                    </div>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <span class="truncate">Est: <strong id="stat-total-estimated" class="text-slate-700 dark:text-slate-300">₹0</strong></span>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800">
+                    <div id="bar-spent" class="h-full bg-brand-500 transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Remaining Budget Card -->
+            <div id="card-remaining" class="bg-white dark:bg-darkcard p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Remaining</p>
+                        <h3 class="text-lg sm:text-2xl font-black text-slate-900 dark:text-white mt-1" id="stat-remaining-budget">₹0</h3>
+                    </div>
+                    <div id="icon-remaining" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <i class="fa-solid fa-piggy-bank text-xs sm:text-sm"></i>
+                    </div>
+                </div>
+                <div class="mt-3 flex items-center text-[11px] font-medium" id="stat-budget-status">
+                    <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><i class="fa-solid fa-shield-check"></i> Safe Limit</span>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800">
+                    <div id="bar-remaining" class="h-full bg-blue-500 transition-all duration-500" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <!-- To-Do & Purchases Card -->
+            <div class="bg-white dark:bg-darkcard p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">Completed</p>
+                        <h3 class="text-lg sm:text-2xl font-black text-accent-600 dark:text-accent-400 mt-1" id="stat-todo-progress">0 / 0</h3>
+                    </div>
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-accent-400 flex items-center justify-center">
+                        <i class="fa-solid fa-[list-check] text-xs sm:text-sm"></i>
+                    </div>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <span id="stat-todo-percent" class="font-bold text-slate-700 dark:text-slate-300">0%</span>
+                    <span id="stat-items-pending">0 Pending</span>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 dark:bg-slate-800">
+                    <div id="bar-progress" class="h-full bg-accent-600 transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Analytics Accordion / Section -->
+        <section class="bg-white dark:bg-darkcard rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 shadow-sm transition-colors">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <h2 class="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base">Analytics & Insights</h2>
+                </div>
+                <button id="btn-toggle-charts" class="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl transition">
+                    <span id="label-toggle-charts">Hide Visuals</span> 
+                    <i id="icon-toggle-charts" class="fa-solid fa-chevron-up text-xs"></i>
+                </button>
+            </div>
+
+            <div id="charts-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 transition-all duration-300">
+                <!-- Doughnut Chart - Category split -->
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 flex flex-col items-center">
+                    <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide self-start mb-2">Category Spending Breakdown</h4>
+                    <div class="w-full h-52 sm:h-60 relative flex items-center justify-center">
+                        <canvas id="chart-category"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bar Chart - Est. vs Actual -->
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 flex flex-col items-center">
+                    <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide self-start mb-2">Estimated vs Actual Spent</h4>
+                    <div class="w-full h-52 sm:h-60 relative">
+                        <canvas id="chart-comparison"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filter Controls & Item View Toolbar -->
+        <section class="bg-white dark:bg-darkcard rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm space-y-3 transition-colors">
+            
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center space-x-2">
+                    <h2 class="font-bold text-slate-900 dark:text-white text-base sm:text-lg">Expenses & Tasks</h2>
+                    <span id="badge-item-count" class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">0 items</span>
+                </div>
+
+                <!-- Right toolbar actions -->
+                <div class="flex items-center gap-2">
+                    <!-- Mobile / Desktop View Mode Switch (Table vs Cards) -->
+                    <div class="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center space-x-1">
+                        <button id="btn-view-cards" title="Card Grid View" class="p-1.5 text-xs rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 font-medium transition">
+                            <i class="fa-solid fa-border-all"></i>
+                        </button>
+                        <button id="btn-view-table" title="Table View" class="p-1.5 text-xs rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-medium shadow-sm transition">
+                            <i class="fa-solid fa-list-ul"></i>
+                        </button>
+                    </div>
+
+                    <!-- Add Item Desktop Button -->
+                    <button id="btn-add-item" class="hidden sm:flex bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-md shadow-brand-500/20 items-center gap-1.5 transition">
+                        <i class="fa-solid fa-plus"></i> Add Kharcha
+                    </button>
+
+                    <!-- Export CSV -->
+                    <button id="btn-export-csv" title="Export to CSV" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-file-csv text-brand-600 dark:text-brand-400"></i> <span class="hidden sm:inline">CSV Export</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Status Filter Pills -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar text-xs font-semibold">
+                <button class="filter-pill active bg-brand-600 text-white px-3 py-1.5 rounded-xl whitespace-nowrap transition" data-status="ALL">All Items</button>
+                <button class="filter-pill bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 px-3 py-1.5 rounded-xl whitespace-nowrap transition" data-status="TO_BUY">🛒 Pending / To Buy</button>
+                <button class="filter-pill bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 px-3 py-1.5 rounded-xl whitespace-nowrap transition" data-status="BOUGHT">✅ Completed</button>
+            </div>
+
+            <!-- Detailed Search, Category & Sorting Controls -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <!-- Search Input -->
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="filter-search" placeholder="Search item, vendor..." class="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-800 dark:text-slate-100 transition">
+                </div>
+
+                <!-- Category Filter Dropdown -->
+                <div>
+                    <select id="filter-category" class="w-full py-2 px-3 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium text-slate-700 dark:text-slate-200">
+                        <option value="ALL">All Categories</option>
+                        <option value="Venue & Catering">🏛️ Venue & Catering</option>
+                        <option value="Attire & Jewelry">👗 Attire & Jewelry</option>
+                        <option value="Photography & Video">📸 Photography & Video</option>
+                        <option value="Decor & Flowers">💐 Decor & Flowers</option>
+                        <option value="Music & Entertainment">🎵 Music & Entertainment</option>
+                        <option value="Stationery & Invites">💌 Stationery & Invites</option>
+                        <option value="Gifts & Favors">🎁 Gifts & Favors</option>
+                        <option value="General & Misc">📦 General & Misc</option>
+                    </select>
+                </div>
+
+                <!-- Sort Order -->
+                <div>
+                    <select id="filter-sort" class="w-full py-2 px-3 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium text-slate-700 dark:text-slate-200">
+                        <option value="NEWEST">Sort: Newest First</option>
+                        <option value="COST_HIGH">Sort: Price (High to Low)</option>
+                        <option value="COST_LOW">Sort: Price (Low to High)</option>
+                        <option value="NAME">Sort: Name (A-Z)</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <!-- Items Container Section (Desktop Table / Mobile Responsive Cards) -->
+        <section class="bg-white dark:bg-darkcard rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
+            
+            <!-- Table View -->
+            <div id="view-container-table" class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold text-[11px] uppercase tracking-wider">
+                            <th class="py-3 px-4 w-12 text-center">Done</th>
+                            <th class="py-3 px-4">Item & Details</th>
+                            <th class="py-3 px-4">Category</th>
+                            <th class="py-3 px-4 text-right">Est. Cost</th>
+                            <th class="py-3 px-4 text-right">Actual Paid</th>
+                            <th class="py-3 px-4 text-center">Priority</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-table-body" class="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+                        <!-- Content dynamically rendered in JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Grid Card View (Optionally toggled or auto on small screen) -->
+            <div id="view-container-cards" class="hidden p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Cards dynamically rendered in JS -->
+            </div>
+
+            <!-- Empty State Display -->
+            <div id="empty-state" class="hidden py-12 px-4 text-center">
+                <div class="w-16 h-16 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+                    <i class="fa-solid fa-basket-shopping text-2xl"></i>
+                </div>
+                <h3 class="text-slate-800 dark:text-slate-200 font-bold text-base">No expense items found</h3>
+                <p class="text-slate-500 dark:text-slate-400 text-xs mt-1 max-w-sm mx-auto">Start planning by adding items to buy, vendor advance payments, or to-do checklist items.</p>
+                <button id="btn-add-item-empty" class="mt-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition shadow-sm">
+                    <i class="fa-solid fa-plus mr-1"></i> Add First Expense
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Mobile Fixed Bottom Floating Bar -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-darkcard/90 border-t border-slate-200 dark:border-slate-800 p-2.5 sm:hidden z-40 glass-header flex items-center justify-around shadow-lg">
+        <button id="mobile-btn-home" class="flex flex-col items-center text-brand-600 dark:text-brand-400 font-medium text-[10px]">
+            <i class="fa-solid fa-house-chimney text-lg"></i>
+            <span>Home</span>
+        </button>
+
+        <button id="mobile-btn-add" class="w-12 h-12 rounded-full bg-brand-600 text-white flex items-center justify-center text-xl shadow-lg shadow-brand-500/40 -mt-6 active:scale-95 transition">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+
+        <button id="mobile-btn-summary" class="flex flex-col items-center text-slate-500 dark:text-slate-400 font-medium text-[10px]">
+            <i class="fa-solid fa-chart-simple text-lg"></i>
+            <span>Summary</span>
+        </button>
+    </div>
+
+    <!-- Floating Action Button (FAB) -->
+    <button id="btn-fab-add" title="Add New Kharcha" class="fixed bottom-20 right-5 sm:bottom-8 sm:right-8 z-40 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white w-14 h-14 rounded-full shadow-2xl shadow-brand-500/50 flex items-center justify-center text-2xl transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-4 focus:ring-brand-500/30">
+        <i class="fa-solid fa-plus"></i>
+    </button>
+
+    <!-- Modal: Add / Edit Expense Item -->
+    <div id="modal-item" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 hidden transition-opacity">
+        <div class="bg-white dark:bg-darkcard rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden transform transition-all max-h-[90vh] flex flex-col">
+            
+            <div class="px-5 py-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center gap-2" id="modal-item-title">
+                    <i class="fa-solid fa-circle-plus text-brand-600 dark:text-brand-400"></i> Add New Kharcha
+                </h3>
+                <button id="btn-close-modal-item" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="form-item" class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+                <input type="hidden" id="item-id">
+
+                <!-- Title -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Item / Task Name *</label>
+                    <input type="text" id="item-title" required placeholder="e.g. Venue Advance, Bridal Dress, Dj Booking" class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Category -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Category</label>
+                        <select id="item-category" class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white focus:outline-none">
+                            <option value="Venue & Catering">🏛️ Venue & Catering</option>
+                            <option value="Attire & Jewelry">👗 Attire & Jewelry</option>
+                            <option value="Photography & Video">📸 Photography & Video</option>
+                            <option value="Decor & Flowers">💐 Decor & Flowers</option>
+                            <option value="Music & Entertainment">🎵 Music & Entertainment</option>
+                            <option value="Stationery & Invites">💌 Stationery & Invites</option>
+                            <option value="Gifts & Favors">🎁 Gifts & Favors</option>
+                            <option value="General & Misc" selected>📦 General & Misc</option>
+                        </select>
+                    </div>
+
+                    <!-- Priority -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Priority</label>
+                        <select id="item-priority" class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white focus:outline-none">
+                            <option value="HIGH">🔴 High Priority</option>
+                            <option value="MEDIUM" selected>🟡 Medium Priority</option>
+                            <option value="LOW">🟢 Low Priority</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Estimated Cost -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Estimated Cost (<span class="currency-symbol-label">₹</span>)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold currency-symbol-label">₹</span>
+                            <input type="number" step="0.01" min="0" id="item-estimated-cost" placeholder="0.00" class="w-full pl-8 pr-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Actual Cost -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Actual Paid (<span class="currency-symbol-label">₹</span>)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold currency-symbol-label">₹</span>
+                            <input type="number" step="0.01" min="0" id="item-actual-cost" placeholder="0.00" class="w-full pl-8 pr-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Checkbox -->
+                <div class="flex items-center space-x-2 pt-2">
+                    <input type="checkbox" id="item-status" class="w-5 h-5 text-brand-600 rounded-lg border-slate-300 focus:ring-brand-500 cursor-pointer">
+                    <label for="item-status" class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">Mark as Purchased / Done</label>
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Notes / Vendor Details</label>
+                    <textarea id="item-notes" rows="2" placeholder="Contact numbers, terms, booking IDs..." class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white focus:outline-none resize-none"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button type="button" id="btn-cancel-item" class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition">Save Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Mark as Bought Quick Dialog -->
+    <div id="modal-mark-bought" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-darkcard rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden p-5 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check text-brand-600 dark:text-brand-400"></i> Mark Purchased
+                </h3>
+                <button id="btn-close-mark-bought" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium truncate" id="mark-bought-item-title">Item Name</p>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Final Amount Paid (<span class="currency-symbol-label">₹</span>)</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold currency-symbol-label">₹</span>
+                    <input type="number" step="0.01" min="0" id="mark-bought-amount" class="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white focus:outline-none">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-2">
+                <button type="button" id="btn-cancel-mark-bought" class="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400">Cancel</button>
+                <button type="button" id="btn-submit-mark-bought" class="px-4 py-2 text-xs font-bold bg-brand-600 text-white rounded-xl shadow-md hover:bg-brand-700">Confirm & Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Target Budget Setting -->
+    <div id="modal-budget" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-darkcard rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden p-5 space-y-4">
+            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Set Overall Target Budget</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Specify overall budget target for this event.</p>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Budget Limit (<span class="currency-symbol-label">₹</span>)</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold currency-symbol-label">₹</span>
+                    <input type="number" step="100" min="0" id="input-target-budget" class="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 text-slate-900 dark:text-white focus:outline-none">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-2">
+                <button type="button" id="btn-cancel-budget" class="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400">Cancel</button>
+                <button type="button" id="btn-save-budget" class="px-4 py-2 text-xs font-bold bg-brand-600 text-white rounded-xl shadow-md hover:bg-brand-700">Save Target</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Application Logic -->
+    <script>
+        const STORAGE_KEYS = {
+            EVENTS: 'kharcha_events_v2',
+            ITEMS: 'kharcha_items_v2',
+            CURRENCY: 'kharcha_currency_v2',
+            ACTIVE_EVENT: 'kharcha_active_event_v2',
+            THEME: 'kharcha_theme_v2'
+        };
+
+        let activeEventId = '';
+        let selectedCurrency = '₹';
+        let currentStatusFilter = 'ALL';
+        let activeViewMode = 'table'; // 'table' or 'cards'
+        
+        let events = [];
+        let itemsList = [];
+
+        let categoryChart = null;
+        let comparisonChart = null;
+        let markBoughtItemId = null;
+
+        // Theme Toggle Handler
+        function initTheme() {
+            const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+
+        document.getElementById('btn-theme-toggle').addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem(STORAGE_KEYS.THEME, isDark ? 'dark' : 'light');
+            renderCharts(getFilteredEventItems());
+        });
+
+        function loadSavedData() {
+            try {
+                const savedEvents = localStorage.getItem(STORAGE_KEYS.EVENTS);
+                if (savedEvents) events = JSON.parse(savedEvents);
+
+                const savedItems = localStorage.getItem(STORAGE_KEYS.ITEMS);
+                if (savedItems) itemsList = JSON.parse(savedItems);
+
+                const savedCurrency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
+                if (savedCurrency) selectedCurrency = savedCurrency;
+
+                const savedActiveEvent = localStorage.getItem(STORAGE_KEYS.ACTIVE_EVENT);
+                if (savedActiveEvent && events.some(e => e.id === savedActiveEvent)) {
+                    activeEventId = savedActiveEvent;
+                } else if (events.length > 0) {
+                    activeEventId = events[0].id;
+                }
+            } catch (err) {
+                console.error("Local Storage load error:", err);
+            }
+
+            if (events.length === 0) {
+                const defaultEvtId = 'event_' + Date.now();
+                events = [{ id: defaultEvtId, name: 'My First Event', targetBudget: 0 }];
+                activeEventId = defaultEvtId;
+            }
+        }
+
+        function saveData() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
+                localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(itemsList));
+                localStorage.setItem(STORAGE_KEYS.CURRENCY, selectedCurrency);
+                localStorage.setItem(STORAGE_KEYS.ACTIVE_EVENT, activeEventId);
+            } catch (err) {
+                console.error("Local Storage save error:", err);
+            }
+        }
+
+        function formatCurrency(amount) {
+            const num = Number(amount || 0);
+            return `${selectedCurrency}${num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+        }
+
+        function updateCurrencyLabels() {
+            document.querySelectorAll('.currency-symbol-label').forEach(el => {
+                el.textContent = selectedCurrency;
+            });
+            document.getElementById('currency-selector').value = selectedCurrency;
+        }
+
+        document.getElementById('currency-selector').addEventListener('change', (e) => {
+            selectedCurrency = e.target.value;
+            updateCurrencyLabels();
+            saveData();
+            renderUI();
+            showToast(`Currency changed to ${selectedCurrency}`);
+        });
+
+        function renderEventDropdown() {
+            const selector = document.getElementById('event-selector');
+            selector.innerHTML = events.map(e => `
+                <option value="${e.id}" ${e.id === activeEventId ? 'selected' : ''}>${escapeHtml(e.name)}</option>
+            `).join('');
+        }
+
+        function getFilteredEventItems() {
+            return itemsList.filter(item => item.eventId === activeEventId || !item.eventId);
+        }
+
+        function renderUI() {
+            const eventItems = getFilteredEventItems();
+
+            const searchQuery = document.getElementById('filter-search').value.toLowerCase().trim();
+            const categoryFilter = document.getElementById('filter-category').value;
+            const sortFilter = document.getElementById('filter-sort').value;
+
+            let filtered = eventItems.filter(item => {
+                const matchesSearch = item.title?.toLowerCase().includes(searchQuery) || item.notes?.toLowerCase().includes(searchQuery);
+                const matchesStatus = currentStatusFilter === 'ALL' || 
+                    (currentStatusFilter === 'BOUGHT' && item.isBought) || 
+                    (currentStatusFilter === 'TO_BUY' && !item.isBought);
+                const matchesCategory = categoryFilter === 'ALL' || item.category === categoryFilter;
+                return matchesSearch && matchesStatus && matchesCategory;
+            });
+
+            // Sorting logic
+            filtered.sort((a, b) => {
+                if (sortFilter === 'COST_HIGH') return (b.actualCost || b.estimatedCost || 0) - (a.actualCost || a.estimatedCost || 0);
+                if (sortFilter === 'COST_LOW') return (a.actualCost || a.estimatedCost || 0) - (b.actualCost || b.estimatedCost || 0);
+                if (sortFilter === 'NAME') return (a.title || '').localeCompare(b.title || '');
+                return (b.createdAt || 0) - (a.createdAt || 0);
+            });
+
+            // Count badges
+            document.getElementById('badge-item-count').textContent = `${filtered.length} of ${eventItems.length} items`;
+
+            // Calculate totals
+            const currentEvent = events.find(e => e.id === activeEventId) || { targetBudget: 0 };
+            const targetBudget = Number(currentEvent.targetBudget || 0);
+
+            let totalEstimated = 0;
+            let totalSpent = 0;
+            let boughtCount = 0;
+
+            eventItems.forEach(item => {
+                totalEstimated += Number(item.estimatedCost || 0);
+                if (item.isBought) {
+                    boughtCount++;
+                    totalSpent += Number(item.actualCost || item.estimatedCost || 0);
+                }
+            });
+
+            const remaining = targetBudget - totalSpent;
+            const totalCount = eventItems.length;
+            const progressPercent = totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0;
+
+            // DOM Updates
+            document.getElementById('stat-target-budget').textContent = formatCurrency(targetBudget);
+            document.getElementById('stat-total-spent').textContent = formatCurrency(totalSpent);
+            document.getElementById('stat-total-estimated').textContent = formatCurrency(totalEstimated);
+            
+            const remainingElem = document.getElementById('stat-remaining-budget');
+            remainingElem.textContent = formatCurrency(remaining);
+            
+            if (remaining < 0) {
+                remainingElem.className = "text-lg sm:text-2xl font-black text-red-600 dark:text-red-400 mt-1";
+                document.getElementById('stat-budget-status').innerHTML = `<span class="text-red-500 font-bold flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Over budget by ${formatCurrency(Math.abs(remaining))}</span>`;
+            } else {
+                remainingElem.className = "text-lg sm:text-2xl font-black text-slate-900 dark:text-white mt-1";
+                document.getElementById('stat-budget-status').innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Safe within budget</span>`;
+            }
+
+            document.getElementById('stat-todo-progress').textContent = `${boughtCount} / ${totalCount}`;
+            document.getElementById('stat-todo-percent').textContent = `${progressPercent}% Completed`;
+            document.getElementById('stat-items-pending').textContent = `${totalCount - boughtCount} Pending`;
+
+            const spentPercent = targetBudget > 0 ? Math.min(100, Math.round((totalSpent / targetBudget) * 100)) : 0;
+            document.getElementById('bar-spent').style.width = `${spentPercent}%`;
+            document.getElementById('bar-progress').style.width = `${progressPercent}%`;
+
+            renderItemsView(filtered);
+            renderCharts(eventItems);
+        }
+
+        function renderItemsView(items) {
+            const tbody = document.getElementById('items-table-body');
+            const cardGrid = document.getElementById('view-container-cards');
+            const emptyState = document.getElementById('empty-state');
+
+            if (items.length === 0) {
+                tbody.innerHTML = '';
+                cardGrid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            const priorityBadges = {
+                'HIGH': '<span class="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200 dark:border-red-800">High</span>',
+                'MEDIUM': '<span class="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">Medium</span>',
+                'LOW': '<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">Low</span>'
+            };
+
+            // Render Table Rows
+            tbody.innerHTML = items.map(item => `
+                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition ${item.isBought ? 'bg-emerald-50/20 dark:bg-emerald-950/10' : ''}">
+                    <td class="py-3 px-4 text-center">
+                        <button data-action="toggle" data-id="${item.id}" title="${item.isBought ? 'Mark Unbought' : 'Mark Purchased'}" 
+                            class="w-6 h-6 rounded-lg flex items-center justify-center transition ${item.isBought ? 'bg-emerald-500 text-white shadow-sm' : 'border-2 border-slate-300 dark:border-slate-600 hover:border-brand-500 text-transparent'}">
+                            <i class="fa-solid fa-check text-xs"></i>
+                        </button>
+                    </td>
+
+                    <td class="py-3 px-4">
+                        <div class="font-bold text-slate-900 dark:text-slate-100 ${item.isBought ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.title)}</div>
+                        ${item.notes ? `<p class="text-xs text-slate-400 dark:text-slate-500 truncate max-w-xs">${escapeHtml(item.notes)}</p>` : ''}
+                    </td>
+
+                    <td class="py-3 px-4">
+                        <span class="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                            ${escapeHtml(item.category || 'General & Misc')}
+                        </span>
+                    </td>
+
+                    <td class="py-3 px-4 text-right font-medium text-slate-600 dark:text-slate-300">
+                        ${formatCurrency(item.estimatedCost || 0)}
+                    </td>
+
+                    <td class="py-3 px-4 text-right font-bold ${item.isBought ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">
+                        ${item.isBought ? formatCurrency(item.actualCost || item.estimatedCost || 0) : '-'}
+                    </td>
+
+                    <td class="py-3 px-4 text-center">
+                        ${priorityBadges[item.priority] || priorityBadges['MEDIUM']}
+                    </td>
+
+                    <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+                        <button data-action="edit" data-id="${item.id}" class="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition" title="Edit">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button data-action="delete" data-id="${item.id}" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition" title="Delete">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Render Card Grid View for Mobile/Cards view
+            cardGrid.innerHTML = items.map(item => `
+                <div class="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 relative">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center space-x-2">
+                            <button data-action="toggle" data-id="${item.id}" class="w-6 h-6 rounded-lg flex items-center justify-center transition ${item.isBought ? 'bg-emerald-500 text-white shadow-sm' : 'border-2 border-slate-300 dark:border-slate-600 text-transparent'}">
+                                <i class="fa-solid fa-check text-xs"></i>
+                            </button>
+                            <h4 class="font-bold text-sm text-slate-900 dark:text-white ${item.isBought ? 'line-through text-slate-400' : ''}">${escapeHtml(item.title)}</h4>
+                        </div>
+                        ${priorityBadges[item.priority] || priorityBadges['MEDIUM']}
+                    </div>
+
+                    <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">${escapeHtml(item.notes || 'No extra notes')}</p>
+
+                    <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-200/60 dark:border-slate-700">
+                        <div>
+                            <span class="text-slate-400 block text-[10px]">Est. Cost</span>
+                            <span class="font-bold text-slate-700 dark:text-slate-300">${formatCurrency(item.estimatedCost)}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-slate-400 block text-[10px]">Actual Paid</span>
+                            <span class="font-bold ${item.isBought ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">${item.isBought ? formatCurrency(item.actualCost) : '-'}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium px-2 py-0.5 rounded-md">
+                            ${escapeHtml(item.category || 'General')}
+                        </span>
+                        <div class="space-x-1">
+                            <button data-action="edit" data-id="${item.id}" class="p-1 text-slate-400 hover:text-brand-600"><i class="fa-solid fa-pen text-xs"></i></button>
+                            <button data-action="delete" data-id="${item.id}" class="p-1 text-slate-400 hover:text-red-600"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderCharts(items) {
+            const categories = {};
+            const estimatedByCategory = {};
+
+            items.forEach(item => {
+                const cat = item.category || 'General & Misc';
+                if (!categories[cat]) categories[cat] = 0;
+                if (!estimatedByCategory[cat]) estimatedByCategory[cat] = 0;
+
+                estimatedByCategory[cat] += Number(item.estimatedCost || 0);
+                if (item.isBought) {
+                    categories[cat] += Number(item.actualCost || item.estimatedCost || 0);
+                }
+            });
+
+            const labels = Object.keys(estimatedByCategory);
+            const spentData = labels.map(l => categories[l] || 0);
+            const estimatedData = labels.map(l => estimatedByCategory[l] || 0);
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+
+            // Category Chart
+            const ctxCat = document.getElementById('chart-category').getContext('2d');
+            if (categoryChart) categoryChart.destroy();
+            
+            categoryChart = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.length ? labels : ['No Expenses Yet'],
+                    datasets: [{
+                        data: spentData.some(v => v > 0) ? spentData : [1],
+                        backgroundColor: [
+                            '#16a34a', '#a855f7', '#3b82f6', '#f59e0b', 
+                            '#ec4899', '#14b8a6', '#6366f1', '#64748b'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // Comparison Bar Chart
+            const ctxComp = document.getElementById('chart-comparison').getContext('2d');
+            if (comparisonChart) comparisonChart.destroy();
+
+            comparisonChart = new Chart(ctxComp, {
+                type: 'bar',
+                data: {
+                    labels: labels.length ? labels.map(l => l.replace(/[^a-zA-Z &]/g, '')) : ['Categories'],
+                    datasets: [
+                        { label: 'Est. Cost', data: estimatedData, backgroundColor: '#cbd5e1' },
+                        { label: 'Actual Spent', data: spentData, backgroundColor: '#22c55e' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: textColor, font: { size: 9 } } },
+                        y: { ticks: { color: textColor, font: { size: 9 } }, beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: textColor, boxWidth: 10, font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-16 sm:bottom-6 right-4 z-50 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 toast-animate';
+            toast.innerHTML = `<i class="fa-solid fa-circle-info text-brand-400 dark:text-brand-600"></i> ${escapeHtml(msg)}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+
+        // View Mode Switcher
+        document.getElementById('btn-view-cards').onclick = () => {
+            activeViewMode = 'cards';
+            document.getElementById('view-container-table').classList.add('hidden');
+            document.getElementById('view-container-cards').classList.remove('hidden');
+            document.getElementById('btn-view-cards').className = "p-1.5 text-xs rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-medium shadow-sm transition";
+            document.getElementById('btn-view-table').className = "p-1.5 text-xs rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 font-medium transition";
+        };
+
+        document.getElementById('btn-view-table').onclick = () => {
+            activeViewMode = 'table';
+            document.getElementById('view-container-cards').classList.add('hidden');
+            document.getElementById('view-container-table').classList.remove('hidden');
+            document.getElementById('btn-view-table').className = "p-1.5 text-xs rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-medium shadow-sm transition";
+            document.getElementById('btn-view-cards').className = "p-1.5 text-xs rounded-lg text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 font-medium transition";
+        };
+
+        // Filter Pills Handler
+        document.querySelectorAll('.filter-pill').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.filter-pill').forEach(b => {
+                    b.className = "filter-pill bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 px-3 py-1.5 rounded-xl whitespace-nowrap transition";
+                });
+                btn.className = "filter-pill active bg-brand-600 text-white px-3 py-1.5 rounded-xl whitespace-nowrap transition";
+                currentStatusFilter = btn.dataset.status;
+                renderUI();
+            };
+        });
+
+        // Table / Card Action Delegation
+        function handleItemActions(e) {
+            const button = e.target.closest('button[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const id = button.dataset.id;
+            const item = itemsList.find(i => i.id === id);
+
+            if (!item) return;
+
+            if (action === 'toggle') {
+                if (!item.isBought) {
+                    markBoughtItemId = id;
+                    document.getElementById('mark-bought-item-title').textContent = item.title;
+                    document.getElementById('mark-bought-amount').value = item.actualCost || item.estimatedCost || '';
+                    document.getElementById('modal-mark-bought').classList.remove('hidden');
+                } else {
+                    item.isBought = false;
+                    saveData();
+                    renderUI();
+                    showToast('Marked as pending');
+                }
+            } else if (action === 'edit') {
+                openEditModal(item);
+            } else if (action === 'delete') {
+                itemsList = itemsList.filter(i => i.id !== id);
+                saveData();
+                renderUI();
+                showToast('Item deleted');
+            }
+        }
+
+        document.getElementById('items-table-body').addEventListener('click', handleItemActions);
+        document.getElementById('view-container-cards').addEventListener('click', handleItemActions);
+
+        document.getElementById('btn-close-mark-bought').onclick = () => document.getElementById('modal-mark-bought').classList.add('hidden');
+        document.getElementById('btn-cancel-mark-bought').onclick = () => document.getElementById('modal-mark-bought').classList.add('hidden');
+        
+        document.getElementById('btn-submit-mark-bought').onclick = () => {
+            if (!markBoughtItemId) return;
+            const amount = parseFloat(document.getElementById('mark-bought-amount').value) || 0;
+            
+            const item = itemsList.find(i => i.id === markBoughtItemId);
+            if (item) {
+                item.isBought = true;
+                item.actualCost = amount;
+                saveData();
+                renderUI();
+                showToast('Purchased successfully!');
+                
+                // Fire celebratory confetti effect
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 40, spread: 60, origin: { y: 0.8 } });
+                }
+            }
+
+            document.getElementById('modal-mark-bought').classList.add('hidden');
+            markBoughtItemId = null;
+        };
+
+        // Modal Controls
+        const modalItem = document.getElementById('modal-item');
+        const formItem = document.getElementById('form-item');
+
+        function openAddModal() {
+            document.getElementById('modal-item-title').innerHTML = '<i class="fa-solid fa-circle-plus text-brand-600 dark:text-brand-400"></i> Add New Kharcha';
+            document.getElementById('item-id').value = '';
+            formItem.reset();
+            modalItem.classList.remove('hidden');
+        }
+
+        function openEditModal(item) {
+            document.getElementById('modal-item-title').innerHTML = '<i class="fa-solid fa-pen text-brand-600 dark:text-brand-400"></i> Edit Kharcha';
+            document.getElementById('item-id').value = item.id;
+            document.getElementById('item-title').value = item.title || '';
+            document.getElementById('item-category').value = item.category || 'General & Misc';
+            document.getElementById('item-priority').value = item.priority || 'MEDIUM';
+            document.getElementById('item-estimated-cost').value = item.estimatedCost || '';
+            document.getElementById('item-actual-cost').value = item.actualCost || '';
+            document.getElementById('item-status').checked = !!item.isBought;
+            document.getElementById('item-notes').value = item.notes || '';
+            modalItem.classList.remove('hidden');
+        }
+
+        document.getElementById('btn-add-item').onclick = openAddModal;
+        document.getElementById('btn-add-item-empty').onclick = openAddModal;
+        document.getElementById('mobile-btn-add').onclick = openAddModal;
+        document.getElementById('btn-fab-add').onclick = openAddModal;
+        document.getElementById('btn-close-modal-item').onclick = () => modalItem.classList.add('hidden');
+        document.getElementById('btn-cancel-item').onclick = () => modalItem.classList.add('hidden');
+
+        formItem.onsubmit = (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('item-id').value;
+            const title = document.getElementById('item-title').value.trim();
+            const category = document.getElementById('item-category').value;
+            const priority = document.getElementById('item-priority').value;
+            const estimatedCost = parseFloat(document.getElementById('item-estimated-cost').value) || 0;
+            const actualCost = parseFloat(document.getElementById('item-actual-cost').value) || 0;
+            const isBought = document.getElementById('item-status').checked;
+            const notes = document.getElementById('item-notes').value.trim();
+
+            if (id) {
+                const index = itemsList.findIndex(i => i.id === id);
+                if (index !== -1) {
+                    itemsList[index] = { ...itemsList[index], title, category, priority, estimatedCost, actualCost, isBought, notes };
+                }
+                showToast('Item updated');
+            } else {
+                const newItem = {
+                    id: 'item_' + Date.now(),
+                    title, category, priority, estimatedCost, actualCost, isBought, notes,
+                    eventId: activeEventId, createdAt: Date.now()
+                };
+                itemsList.push(newItem);
+                showToast('Item added to list');
+            }
+
+            saveData();
+            renderUI();
+            modalItem.classList.add('hidden');
+        };
+
+        // Budget Modal Controls
+        const modalBudget = document.getElementById('modal-budget');
+        document.getElementById('btn-edit-budget').onclick = () => {
+            const currentEvent = events.find(e => e.id === activeEventId);
+            document.getElementById('input-target-budget').value = currentEvent ? currentEvent.targetBudget : 10000;
+            modalBudget.classList.remove('hidden');
+        };
+        document.getElementById('btn-cancel-budget').onclick = () => modalBudget.classList.add('hidden');
+        document.getElementById('btn-save-budget').onclick = () => {
+            const newBudget = parseFloat(document.getElementById('input-target-budget').value) || 0;
+            const currentEvent = events.find(e => e.id === activeEventId);
+            if (currentEvent) {
+                currentEvent.targetBudget = newBudget;
+                saveData();
+                renderUI();
+                showToast('Target budget updated');
+            }
+            modalBudget.classList.add('hidden');
+        };
+
+        // New Event Creation
+        document.getElementById('btn-new-event').onclick = () => {
+            const eventName = prompt("Enter Name for New Event / Project:", "Vacation Trip");
+            if (!eventName) return;
+
+            const newEventId = 'event_' + Date.now();
+            events.push({ id: newEventId, name: '🎉 ' + eventName, targetBudget: 50000 });
+            activeEventId = newEventId;
+
+            saveData();
+            renderEventDropdown();
+            renderUI();
+            showToast('New event created');
+        };
+
+        document.getElementById('event-selector').onchange = (e) => {
+            activeEventId = e.target.value;
+            saveData();
+            renderUI();
+        };
+
+        // Chart Accordion Toggle
+        let chartsVisible = true;
+        document.getElementById('btn-toggle-charts').onclick = () => {
+            chartsVisible = !chartsVisible;
+            const container = document.getElementById('charts-container');
+            const label = document.getElementById('label-toggle-charts');
+            const icon = document.getElementById('icon-toggle-charts');
+
+            if (chartsVisible) {
+                container.classList.remove('hidden');
+                label.textContent = "Hide Visuals";
+                icon.className = "fa-solid fa-chevron-up text-xs";
+            } else {
+                container.classList.add('hidden');
+                label.textContent = "Show Visuals";
+                icon.className = "fa-solid fa-chevron-down text-xs";
+            }
+        };
+
+        // Live Filters
+        document.getElementById('filter-search').oninput = renderUI;
+        document.getElementById('filter-category').onchange = renderUI;
+        document.getElementById('filter-sort').onchange = renderUI;
+
+        // Mobile Nav Actions
+        document.getElementById('mobile-btn-home').onclick = () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        document.getElementById('mobile-btn-summary').onclick = () => {
+            document.getElementById('charts-container').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        // Export CSV
+        document.getElementById('btn-export-csv').onclick = () => {
+            const eventItems = getFilteredEventItems();
+            if (eventItems.length === 0) {
+                showToast('No items to export');
+                return;
+            }
+
+            let csvContent = `data:text/csv;charset=utf-8,Item Name,Category,Priority,Est Cost (${selectedCurrency}),Actual Paid (${selectedCurrency}),Status,Notes\n`;
+            eventItems.forEach(i => {
+                const row = [
+                    `"${(i.title || '').replace(/"/g, '""')}"`,
+                    `"${(i.category || '').replace(/"/g, '""')}"`,
+                    i.priority || 'MEDIUM',
+                    i.estimatedCost || 0,
+                    i.actualCost || 0,
+                    i.isBought ? 'Purchased' : 'Pending',
+                    `"${(i.notes || '').replace(/"/g, '""')}"`
+                ].join(',');
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `kharcha_expenses_${activeEventId}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('CSV downloaded');
+        };
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            loadSavedData();
+            updateCurrencyLabels();
+            renderEventDropdown();
+            renderUI();
+        });
+    </script>
+</body>
+</html>
