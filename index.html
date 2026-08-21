@@ -249,19 +249,19 @@
             </div>
 
             <div id="charts-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 transition-all duration-300">
+                <!-- Unified Multi-Metric Bar Chart -->
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 flex flex-col items-center">
+                    <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide self-start mb-2">Estimated vs Paid vs Pending</h4>
+                    <div class="w-full h-52 sm:h-60 relative">
+                        <canvas id="chart-comparison"></canvas>
+                    </div>
+                </div>
+
                 <!-- Doughnut Chart - Category split -->
                 <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 flex flex-col items-center">
                     <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide self-start mb-2">Category Spending Breakdown</h4>
                     <div class="w-full h-52 sm:h-60 relative flex items-center justify-center">
                         <canvas id="chart-category"></canvas>
-                    </div>
-                </div>
-
-                <!-- Bar Chart - Est. vs Actual -->
-                <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700/50 flex flex-col items-center">
-                    <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide self-start mb-2">Estimated vs Actual Spent</h4>
-                    <div class="w-full h-52 sm:h-60 relative">
-                        <canvas id="chart-comparison"></canvas>
                     </div>
                 </div>
             </div>
@@ -674,8 +674,9 @@
 
             // Sorting logic
             filtered.sort((a, b) => {
-                if (sortFilter === 'COST_HIGH') return (b.actualCost || b.estimatedCost || 0) - (a.actualCost || a.estimatedCost || 0);
-                if (sortFilter === 'COST_LOW') return (a.actualCost || a.estimatedCost || 0) - (b.actualCost || b.estimatedCost || 0);
+                const getActualOrEst = (i) => (i.actualCost !== undefined && i.actualCost !== '' && i.actualCost !== null) ? Number(i.actualCost) : Number(i.estimatedCost || 0);
+                if (sortFilter === 'COST_HIGH') return getActualOrEst(b) - getActualOrEst(a);
+                if (sortFilter === 'COST_LOW') return getActualOrEst(a) - getActualOrEst(b);
                 if (sortFilter === 'NAME') return (a.title || '').localeCompare(b.title || '');
                 return (b.createdAt || 0) - (a.createdAt || 0);
             });
@@ -689,13 +690,19 @@
 
             let totalEstimated = 0;
             let totalSpent = 0;
+            let totalPending = 0;
             let boughtCount = 0;
 
             eventItems.forEach(item => {
-                totalEstimated += Number(item.estimatedCost || 0);
+                const est = Number(item.estimatedCost || 0);
+                totalEstimated += est;
+                
                 if (item.isBought) {
                     boughtCount++;
-                    totalSpent += Number(item.actualCost || item.estimatedCost || 0);
+                    const paid = (item.actualCost !== undefined && item.actualCost !== '' && item.actualCost !== null) ? Number(item.actualCost) : est;
+                    totalSpent += paid;
+                } else {
+                    totalPending += est;
                 }
             });
 
@@ -751,6 +758,13 @@
                 'LOW': '<span class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">Low</span>'
             };
 
+            const getDisplayPaid = (item) => {
+                if (item.actualCost !== undefined && item.actualCost !== '' && item.actualCost !== null) {
+                    return formatCurrency(item.actualCost);
+                }
+                return item.isBought ? formatCurrency(item.estimatedCost || 0) : '-';
+            };
+
             // Render Table Rows
             tbody.innerHTML = items.map(item => `
                 <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition ${item.isBought ? 'bg-emerald-50/20 dark:bg-emerald-950/10' : ''}">
@@ -776,8 +790,8 @@
                         ${formatCurrency(item.estimatedCost || 0)}
                     </td>
 
-                    <td class="py-3 px-4 text-right font-bold ${item.isBought ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">
-                        ${item.isBought ? formatCurrency(item.actualCost || item.estimatedCost || 0) : '-'}
+                    <td class="py-3 px-4 text-right font-bold ${item.isBought || (item.actualCost !== undefined && item.actualCost !== '' && item.actualCost !== null) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">
+                        ${getDisplayPaid(item)}
                     </td>
 
                     <td class="py-3 px-4 text-center">
@@ -817,7 +831,7 @@
                         </div>
                         <div class="text-right">
                             <span class="text-slate-400 block text-[10px]">Actual Paid</span>
-                            <span class="font-bold ${item.isBought ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">${item.isBought ? formatCurrency(item.actualCost) : '-'}</span>
+                            <span class="font-bold ${item.isBought || (item.actualCost !== undefined && item.actualCost !== '' && item.actualCost !== null) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">${getDisplayPaid(item)}</span>
                         </div>
                     </div>
 
@@ -837,29 +851,38 @@
         function renderCharts(items) {
             const categories = {};
             const estimatedByCategory = {};
+            const paidByCategory = {};
+            const pendingByCategory = {};
 
             items.forEach(item => {
                 const cat = item.category || 'General & Misc';
-                if (!categories[cat]) categories[cat] = 0;
                 if (!estimatedByCategory[cat]) estimatedByCategory[cat] = 0;
+                if (!paidByCategory[cat]) paidByCategory[cat] = 0;
+                if (!pendingByCategory[cat]) pendingByCategory[cat] = 0;
 
-                estimatedByCategory[cat] += Number(item.estimatedCost || 0);
+                const est = Number(item.estimatedCost || 0);
+                estimatedByCategory[cat] += est;
+
                 if (item.isBought) {
-                    categories[cat] += Number(item.actualCost || item.estimatedCost || 0);
+                    const paid = (item.actualCost !== undefined && item.actualCost !== '' && item.actualCost !== null) ? Number(item.actualCost) : est;
+                    paidByCategory[cat] += paid;
+                } else {
+                    pendingByCategory[cat] += est;
                 }
             });
 
             const labels = Object.keys(estimatedByCategory);
-            const spentData = labels.map(l => categories[l] || 0);
             const estimatedData = labels.map(l => estimatedByCategory[l] || 0);
+            const paidData = labels.map(l => paidByCategory[l] || 0);
+            const pendingData = labels.map(l => pendingByCategory[l] || 0);
 
             const isDark = document.documentElement.classList.contains('dark');
             const textColor = isDark ? '#94a3b8' : '#64748b';
 
-            // Category Chart update in-place without layout collapse
+            // Category Chart update
             const ctxCat = document.getElementById('chart-category');
             if (ctxCat) {
-                const categoryChartData = spentData.some(v => v > 0) ? spentData : [1];
+                const categoryChartData = paidData.some(v => v > 0) ? paidData : [1];
                 const categoryLabels = labels.length ? labels : ['No Expenses Yet'];
 
                 if (categoryChart) {
@@ -891,7 +914,7 @@
                 }
             }
 
-            // Comparison Bar Chart update in-place
+            // Unified Comparison Bar Chart - Est vs Paid vs Pending
             const ctxComp = document.getElementById('chart-comparison');
             if (ctxComp) {
                 const compLabels = labels.length ? labels.map(l => l.replace(/[^a-zA-Z &]/g, '')) : ['Categories'];
@@ -899,7 +922,8 @@
                 if (comparisonChart) {
                     comparisonChart.data.labels = compLabels;
                     comparisonChart.data.datasets[0].data = estimatedData;
-                    comparisonChart.data.datasets[1].data = spentData;
+                    comparisonChart.data.datasets[1].data = paidData;
+                    comparisonChart.data.datasets[2].data = pendingData;
                     comparisonChart.options.scales.x.ticks.color = textColor;
                     comparisonChart.options.scales.y.ticks.color = textColor;
                     comparisonChart.options.plugins.legend.labels.color = textColor;
@@ -910,8 +934,9 @@
                         data: {
                             labels: compLabels,
                             datasets: [
-                                { label: 'Est. Cost', data: estimatedData, backgroundColor: '#cbd5e1' },
-                                { label: 'Actual Spent', data: spentData, backgroundColor: '#22c55e' }
+                                { label: 'Est. Budget', data: estimatedData, backgroundColor: '#60a5fa' },
+                                { label: 'Actual Paid', data: paidData, backgroundColor: '#22c55e' },
+                                { label: 'Pending Bal.', data: pendingData, backgroundColor: '#f59e0b' }
                             ]
                         },
                         options: {
