@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kharcha - Event Expense & To-Do Tracker</title>
+    <title>Kharchify</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -106,7 +106,7 @@
                 </div>
                 <div>
                     <div class="flex items-center gap-2">
-                        <h1 class="font-extrabold text-slate-900 dark:text-white text-lg sm:text-xl tracking-tight">Kharcha</h1>
+                        <h1 class="font-extrabold text-slate-900 dark:text-white text-lg sm:text-xl tracking-tight">Kharchify</h1>
                         <span class="text-[10px] uppercase font-bold bg-brand-100 dark:bg-brand-900/60 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded-full border border-brand-200 dark:border-brand-700">Offline Pro</span>
                     </div>
                     <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">Smart Event Expenses & To-Do Checklist</p>
@@ -290,7 +290,7 @@
 
                     <!-- Add Item Desktop Button -->
                     <button id="btn-add-item" class="hidden sm:flex bg-brand-600 hover:bg-brand-700 active:scale-95 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-md shadow-brand-500/20 items-center gap-1.5 transition">
-                        <i class="fa-solid fa-plus"></i> Add Kharcha
+                        <i class="fa-solid fa-plus"></i> Add Item
                     </button>
 
                     <!-- Export CSV -->
@@ -402,7 +402,7 @@
     </div>
 
     <!-- Floating Action Button (FAB) -->
-    <button id="btn-fab-add" title="Add New Kharcha" class="fixed bottom-20 right-5 sm:bottom-8 sm:right-8 z-40 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white w-14 h-14 rounded-full shadow-2xl shadow-brand-500/50 flex items-center justify-center text-2xl transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-4 focus:ring-brand-500/30">
+    <button id="btn-fab-add" title="Add New Item" class="fixed bottom-20 right-5 sm:bottom-8 sm:right-8 z-40 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white w-14 h-14 rounded-full shadow-2xl shadow-brand-500/50 flex items-center justify-center text-2xl transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-4 focus:ring-brand-500/30">
         <i class="fa-solid fa-plus"></i>
     </button>
 
@@ -412,7 +412,7 @@
             
             <div class="px-5 py-4 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center gap-2" id="modal-item-title">
-                    <i class="fa-solid fa-circle-plus text-brand-600 dark:text-brand-400"></i> Add New Kharcha
+                    <i class="fa-solid fa-circle-plus text-brand-600 dark:text-brand-400"></i> Add New Item
                 </h3>
                 <button id="btn-close-modal-item" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
                     <i class="fa-solid fa-xmark text-lg"></i>
@@ -548,11 +548,11 @@
     <!-- Core Application Logic -->
     <script>
         const STORAGE_KEYS = {
-            EVENTS: 'kharcha_events_v2',
-            ITEMS: 'kharcha_items_v2',
-            CURRENCY: 'kharcha_currency_v2',
-            ACTIVE_EVENT: 'kharcha_active_event_v2',
-            THEME: 'kharcha_theme_v2'
+            EVENTS: 'kharchify_events_v2',
+            ITEMS: 'kharchify_items_v2',
+            CURRENCY: 'kharchify_currency_v2',
+            ACTIVE_EVENT: 'kharchify_active_event_v2',
+            THEME: 'kharchify_theme_v2'
         };
 
         let activeEventId = '';
@@ -1015,14 +1015,14 @@
         const formItem = document.getElementById('form-item');
 
         function openAddModal() {
-            document.getElementById('modal-item-title').innerHTML = '<i class="fa-solid fa-circle-plus text-brand-600 dark:text-brand-400"></i> Add New Kharcha';
+            document.getElementById('modal-item-title').innerHTML = '<i class="fa-solid fa-circle-plus text-brand-600 dark:text-brand-400"></i> Add New Item';
             document.getElementById('item-id').value = '';
             formItem.reset();
             modalItem.classList.remove('hidden');
         }
 
         function openEditModal(item) {
-            document.getElementById('modal-item-title').innerHTML = '<i class="fa-solid fa-pen text-brand-600 dark:text-brand-400"></i> Edit Kharcha';
+            document.getElementById('modal-item-title').innerHTML = '<i class="fa-solid fa-pen text-brand-600 dark:text-brand-400"></i> Edit Item';
             document.getElementById('item-id').value = item.id;
             document.getElementById('item-title').value = item.title || '';
             document.getElementById('item-category').value = item.category || 'General & Misc';
@@ -1172,7 +1172,7 @@
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `kharcha_expenses_${activeEventId}.csv`);
+            link.setAttribute("download", `kharchify_expenses_${activeEventId}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
